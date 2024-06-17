@@ -24,8 +24,8 @@ async def help_command(message: types.Message):
     💬 Регистрация пользователя <b>/start</b>
     💬 Информацию о пользователе можно вывести с помощью команды <b>/status</b>"""
 
-    logging.info(f"user {message.from_user.id} asked for help")
     await message.reply(text=help_str, parse_mode="HTML")
+    logging.info(f"user {message.from_user.id} asked for help")
 
 
 async def status_command(message: types.Message):
@@ -36,16 +36,25 @@ async def status_command(message: types.Message):
 
         current_user = await session.get(User, message.from_user.id)
 
-        await session.close()
-
-        if current_user is None:
-            await message.reply(text="Ничего о Вас не знаем! Регистрация /start")
-        else:
+        if current_user:
             str = f"""<b><i>Статус</i></b>
-                Ваш ID - {current_user.id}
-                Ваше имя - {current_user.name}"""
+                            Ваш ID - {current_user.id}
+                            Ваше имя - {current_user.name}
+                            Дата регистрации - {current_user.reg_date}"""
+
+            if current_user.token:
+                str += f"\nТокен - {current_user.token}"
+
+            if current_user.teacher_id:
+                teacher = await session.get(User, current_user.teacher_id)
+
+                str += f"\nВы слушатель у - {teacher.name}"
 
             await message.reply(text=str, parse_mode="HTML")
+        else:
+            await message.reply(text="Ничего о Вас не знаем! Регистрация /start")
+
+        await session.close()
 
         logging.info(f"user {message.from_user.id} requested status")
 
@@ -56,13 +65,16 @@ async def start_command(message: types.Message):
 
         user = await session.get(User, message.from_user.id)
 
-        await session.close()
-
         if user is None:
-            await message.reply("Выберите роль:", reply_markup=register_buttons)
+            await message.reply("Выберите желаемую роль:", reply_markup=register_buttons)
         else:
-            await message.reply(f"Вы уже зарегестрированы")
+            if user.teacher_id:
+                user_teacher = await session.get(User, user.teacher_id)
+                await message.reply(f"Вы уже зарегестрированы как слушатель у {user_teacher.name}")
+            else:
+                await message.reply(f"Вы уже зарегестрированы как преподаватель. Для регистрации юзеров пришлите им свой Id /status")
 
+        await session.close()
         logging.info(f"user {message.from_user.id} started the bot")
 
 
