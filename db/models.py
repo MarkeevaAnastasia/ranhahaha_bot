@@ -4,6 +4,7 @@
 __all__ = [
     'User',
     'Base',
+    'YandexFolder'
 ]
 
 import datetime
@@ -16,14 +17,18 @@ from sqlalchemy import Column, Integer, String, DATE
 class Base(DeclarativeBase):
     pass
 
-
 class User(Base):
-    """модель пользователя tg для регистрации"""
-
-    __tablename__ = "user_table"
-
-    user_id = Column(Integer, nullable=False, unique=True, primary_key=True)
-
-    username = Column(String, unique=False, nullable=True)  # Вместо String можно использовать VARCHAR()
-
+    __tablename__ = 'users'
+    id = Column(Integer, index=True, primary_key=True)
+    teacher_id = Column(Integer, nullable=True)
+    token = Column(String, nullable=True)
+    name = Column(String)
     reg_date = Column(DATE, default=datetime.datetime.now())
+
+
+class YandexFolder(Base):
+    __tablename__ = 'yandex_folders'
+    id = Column(Integer, index=True, primary_key=True)
+    teacher_id = Column(Integer)
+    name = Column(String)
+    update_date = Column(String, nullable=True)

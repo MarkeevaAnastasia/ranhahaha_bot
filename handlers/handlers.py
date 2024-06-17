@@ -4,51 +4,28 @@ __all__ = [
 
 
 import logging
+
 from aiogram import Router, F
 from aiogram import types
 from aiogram.filters.command import Command
-from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from db import async_session_maker, User
-from .keyboards import keyboard_continue
-from .callbacks import callback_continue
 
+from db import async_session_maker, User
+from .callbacks import callback_continue
+from .keyboards import register_buttons
 
 # настройка логирования
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-# help_command
-help_str = """
-Вас приветствует бот <b><i>ИМЯ БОТА</i></b>\n
-💬 Вы можете вывести справочную информацию, отправив команду <b>/help</b>\n
-💬 Информацию о пользователе можно вывести с помощью команды <b>/status</b>
-"""
-
-
 async def help_command(message: types.Message):
-    """справочная команда, регистрация пользователя"""
+    help_str = """Вас приветствует бот <b><i>ranhahaha_bot</i></b>
+    💬 Регистрация пользователя <b>/start</b>
+    💬 Информацию о пользователе можно вывести с помощью команды <b>/status</b>"""
 
-    async with async_session_maker() as session:
-        session: AsyncSession
-        query = select(User).where(User.user_id == message.from_user.id)
-        user_exit = await session.execute(query)
-
-        if user_exit.scalars().all():
-            await message.reply(text=help_str, parse_mode="HTML")
-            logging.info(f"user {message.from_user.id} asks for help")
-
-        else:
-            new_user = {
-                "user_id": message.from_user.id,
-                "username": message.from_user.username
-            }
-            stmt = insert(User).values(**new_user)
-            await session.execute(stmt)
-            await session.commit()
-            await message.reply(help_str)
-            logging.info(f"register new user: {message.from_user.id}")
+    logging.info(f"user {message.from_user.id} asked for help")
+    await message.reply(text=help_str, parse_mode="HTML")
 
 
 async def status_command(message: types.Message):
@@ -56,19 +33,44 @@ async def status_command(message: types.Message):
 
     async with async_session_maker() as session:
         session: AsyncSession
-        query = select(User).where(User.user_id == message.from_user.id)
-        result = await session.execute(query)
-        user = result.scalar()
-        await message.reply(text=f"<b>User ID</b>: <i>{user.user_id}</i>\n"
-                                 f"<b>User name</b>: <i>{user.username}</i>",
-                                 parse_mode="HTML")
-        logging.info(f"user {message.from_user.id} is asking for status")
 
-    await message.reply("Хотите ли вы продолжить?", reply_markup=keyboard_continue)
+        current_user = await session.get(User, message.from_user.id)
+
+        await session.close()
+
+        if current_user is None:
+            await message.reply(text="Ничего о Вас не знаем! Регистрация /start")
+        else:
+            str = f"""<b><i>Статус</i></b>
+                Ваш ID - {current_user.id}
+                Ваше имя - {current_user.name}"""
+
+            await message.reply(text=str, parse_mode="HTML")
+
+        logging.info(f"user {message.from_user.id} requested status")
+
+
+async def start_command(message: types.Message):
+    async with async_session_maker() as session:
+        session: AsyncSession
+
+        user = await session.get(User, message.from_user.id)
+
+        await session.close()
+
+        if user is None:
+            await message.reply("Выберите роль:", reply_markup=register_buttons)
+        else:
+            await message.reply(f"Вы уже зарегестрированы")
+
+        logging.info(f"user {message.from_user.id} started the bot")
 
 
 def register_message_handler(router: Router):
     """Маршрутизация"""
-    router.message.register(help_command, Command(commands=["start", "help"]))
+    router.message.register(start_command, Command(commands=["start"]))
     router.message.register(status_command, Command(commands=["status"]))
-    router.callback_query.register(callback_continue, F.data.startswith("continue_"))
+    router.message.register(help_command, Command(commands=["help"]))
+
+    #обработчик ответа при нажатии на кнопку после /start, считываем по первому слову
+    router.callback_query.register(callback_continue, F.data.startswith("register_"))
