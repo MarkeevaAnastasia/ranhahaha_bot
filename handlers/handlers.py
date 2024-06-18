@@ -3,22 +3,26 @@ __all__ = [
 ]
 
 import logging
-
 from aiogram import Router, F
 from aiogram import types
 from aiogram.filters.command import Command
+from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import REGISTER_URL
 from db import async_session_maker, User
 from db.models import YandexFolder
 from yandex import YandexDisk
-from .callbacks import callback_continue
+from sqlalchemy import select
+from .callbacks import start_command_callback
 from .keyboards import register_buttons
 
 # настройка логирования
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+class Form(StatesGroup):
+    waitingid = State()
 
 async def help_command(message: types.Message):
     help_str = """Вас приветствует бот <b><i>ranhahaha_bot</i></b>
@@ -66,14 +70,34 @@ async def start_command(message: types.Message):
 
         user = await session.get(User, message.from_user.id)
 
-        if user is None:
+        arr = message.text.split()
+
+        if len(arr) == 2:
+            id = int(arr[1].strip())
+
+            teachermodel = await session.get(User, id)
+
+            if teachermodel is None:
+                await message.answer("Ошибка айди")
+            else:
+                new_user = User(id=message.from_user.id, teacher_id=id, name=message.from_user.username)
+                session.add(new_user)
+
+                await message.answer(f"Вы зарегистрировались как слушатель")
+
+            logging.info(f"user {message.from_user.id} registered as a new student")
+
+            await session.commit()
+            await session.close()
+        elif user is None:
             await message.reply("Выберите желаемую роль:", reply_markup=register_buttons)
         else:
             if user.teacher_id:
                 user_teacher = await session.get(User, user.teacher_id)
                 await message.reply(f"Вы уже зарегестрированы как слушатель у {user_teacher.name}")
             else:
-                await message.reply(f"Вы уже зарегестрированы как преподаватель. Для регистрации юзеров пришлите им свой Id /status")
+                await message.reply(
+                    f"Вы уже зарегестрированы как преподаватель. Для регистрации юзеров пришлите им свой Id /status")
 
         await session.close()
 
@@ -82,7 +106,7 @@ async def start_command(message: types.Message):
 
 async def register_command(message: types.Message):
     text = (f"Для регистрации токена следуйте шагам:\n"
-            f"1. Нажмите на: <a href=\"\"></a>\n"
+            f"1. Нажмите на <a href=\"{REGISTER_URL}\">ссылку</a>\n"
             f"2. Авторизируйтесь в ЯДиске через свой личный аккаунт\n"
             f"3. Вставьте результат в /token ТОКЕН")
     await message.reply(text=text, parse_mode="HTML")
@@ -125,7 +149,7 @@ async def add_command(message: types.Message):
         session: AsyncSession
         arr = message.text.split()
 
-        if len(arr) is 2:
+        if len(arr) == 2:
             foldername = arr[1].strip()
             teachermodel = await session.get(User, message.from_user.id)
 
@@ -137,14 +161,46 @@ async def add_command(message: types.Message):
                 new = YandexFolder(teacher_id=teachermodel.id, name=foldername)
                 session.add(new)
 
-                await message.reply(f"Добавьте папку с помощью /add НАЗВАНИЕ_ПАПКИ")
+                await message.reply(f"Папка добавлена в отслеживаемые для Ваших подписчиков")
         else:
-            await message.reply("Укажите название или путь к папке через пробел после /add")
+            await message.reply("Укажите название папки /add НАЗВАНИЕ")
         logging.info(f"user {message.from_user.id} add folder pressed")
 
         await session.commit()
         await session.close()
 
+
+async def delete_command(message: types.Message):
+    async with async_session_maker() as session:
+        session: AsyncSession
+        arr = message.text.split()
+
+        if len(arr) == 2:
+            foldername = arr[1].strip()
+            teachermodel = await session.get(User, message.from_user.id)
+
+            if teachermodel.teacher_id:
+                await message.reply("Доступно только преподавателю!")
+            else:
+                f = select(YandexFolder).filter(YandexFolder.teacher_id == teachermodel.id, YandexFolder.name == foldername)
+
+                result = await session.execute(f)
+                yandexfolder = result.scalars().first()
+
+                if not yandexfolder:
+                    await message.reply("Папка не найдена")
+                    return
+
+                await session.delete(yandexfolder)
+
+                await message.reply(f"Успешно! Папка удалена")
+        else:
+            await message.reply("Укажите название папки /add НАЗВАНИЕ")
+
+        logging.info(f"user {message.from_user.id} delete folder pressed")
+
+        await session.commit()
+        await session.close()
 
 def register_message_handler(router: Router):
     """Маршрутизация"""
@@ -157,4 +213,4 @@ def register_message_handler(router: Router):
     router.message.register(delete_command, Command(commands=["delete"]))
 
     #обработчик ответа при нажатии на кнопку после /start, считываем по первому слову
-    router.callback_query.register(callback_continue, F.data.startswith("register_"))
+    router.callback_query.register(start_command_callback, F.data.startswith("register_"))
