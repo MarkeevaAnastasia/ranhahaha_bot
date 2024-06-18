@@ -5,6 +5,7 @@ __all__ = [
 import logging
 from aiogram import Router, F
 from aiogram import types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters.command import Command
 from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -202,6 +203,28 @@ async def delete_command(message: types.Message):
         await session.commit()
         await session.close()
 
+async def check_command(message: types.Message, bot):
+    arr = message.text.split()
+    async with async_session_maker() as session:
+        session: AsyncSession
+
+        if len(arr) == 2:
+            foldername = arr[1].strip()
+
+            f = select(User).filter(User.teacher_id == message.from_user.id)
+            result = await session.execute(f)
+            users = result.scalars().all()
+
+            for user in users:
+                try:
+                    await bot.send_message(chat_id=user.id, text=f"Изменение в папке {foldername}")
+                except TelegramBadRequest as e:
+                    print(f"{e}")
+
+            await message.reply(f"Успешно! Уведомление отправлено всем слушателям ({len(users)})")
+        else:
+            await message.reply("Укажите название папки /check НАЗВАНИЕ")
+
 def register_message_handler(router: Router):
     """Маршрутизация"""
     router.message.register(start_command, Command(commands=["start"]))
@@ -211,6 +234,5 @@ def register_message_handler(router: Router):
     router.message.register(help_command, Command(commands=["help"]))
     router.message.register(add_command, Command(commands=["add"]))
     router.message.register(delete_command, Command(commands=["delete"]))
-
-    #обработчик ответа при нажатии на кнопку после /start, считываем по первому слову
+    router.message.register(check_command, Command(commands=["check"]))
     router.callback_query.register(start_command_callback, F.data.startswith("register_"))

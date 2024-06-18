@@ -16,15 +16,15 @@
 # pip install -r requirements.txt —  загрузить пакеты из файла
 
 
-# импорты
-import logging  # библиотека логирования (журналирование)
-import asyncio  # библиотека для асинхронного программирования
-from aiogram import Bot, Dispatcher, types
-from config import TOKEN
-from handlers import register_message_handler
-from handlers import commands_for_bot
-from db import async_create_table
+import asyncio
+import logging
 
+from aiogram import Bot, Dispatcher
+
+from config import TOKEN
+from db import async_create_table
+from handlers import commands_for_bot
+from handlers import register_message_handler
 
 # асинхронный вызов функции - конкурентный вызов с ожиданием события для продолжения процесса выполнения
 async def main():
@@ -34,8 +34,9 @@ async def main():
     logging.basicConfig(level=logging.INFO)
 
     # создание экземпляров классов Bot и Dispatcher
-    bot = Bot(token=TOKEN)
     dp = Dispatcher()
+
+    bot = Bot(token=TOKEN)
 
     # функция для вызова хендлеров из пакета handlers
     register_message_handler(dp)
