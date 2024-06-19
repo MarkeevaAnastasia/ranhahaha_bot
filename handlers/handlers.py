@@ -22,9 +22,6 @@ from .keyboards import register_buttons
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-class Form(StatesGroup):
-    waitingid = State()
-
 async def help_command(message: types.Message):
     help_str = """Вас приветствует бот <b><i>ranhahaha_bot</i></b>
     💬 Регистрация пользователя <b>/start</b>
@@ -149,10 +146,14 @@ async def add_command(message: types.Message):
     async with async_session_maker() as session:
         session: AsyncSession
         arr = message.text.split()
-
-        if len(arr) == 2:
+        teachermodel = await session.get(User, message.from_user.id)
+        
+        if not teachermodel:
+            await message.reply(f"Зарегистрируйтесь! /start")
+        elif teachermodel.teacher_id:
+            await message.reply(f"Вы не учитель")
+        elif len(arr) == 2:
             foldername = arr[1].strip()
-            teachermodel = await session.get(User, message.from_user.id)
 
             if teachermodel.teacher_id:
                 await message.reply("Доступно только преподавателю!")
@@ -175,10 +176,14 @@ async def delete_command(message: types.Message):
     async with async_session_maker() as session:
         session: AsyncSession
         arr = message.text.split()
+        teachermodel = await session.get(User, message.from_user.id)
 
-        if len(arr) == 2:
+        if not teachermodel:
+            await message.reply(f"Зарегистрируйтесь! /start")
+        elif teachermodel.teacher_id:
+            await message.reply(f"Вы не учитель")
+        elif len(arr) == 2:
             foldername = arr[1].strip()
-            teachermodel = await session.get(User, message.from_user.id)
 
             if teachermodel.teacher_id:
                 await message.reply("Доступно только преподавателю!")
@@ -208,7 +213,13 @@ async def check_command(message: types.Message, bot):
     async with async_session_maker() as session:
         session: AsyncSession
 
-        if len(arr) == 2:
+        teachermodel = await session.get(User, message.from_user.id)
+
+        if not teachermodel:
+            await message.reply(f"Зарегистрируйтесь! /start")
+        elif teachermodel.teacher_id:
+            await message.reply(f"Только для учителя!")
+        elif len(arr) == 2:
             foldername = arr[1].strip()
 
             f = select(User).filter(User.teacher_id == message.from_user.id)

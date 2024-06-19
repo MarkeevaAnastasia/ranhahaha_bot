@@ -19,16 +19,24 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = 'users'
+    
     id = Column(Integer, index=True, primary_key=True)
+    
     teacher_id = Column(Integer, nullable=True)
+    
     token = Column(String, nullable=True)
+    
     name = Column(String)
+    
     reg_date = Column(DATE, default=datetime.datetime.now())
 
 
 class YandexFolder(Base):
     __tablename__ = 'yandex_folders'
+    
     id = Column(Integer, index=True, primary_key=True)
+    
     teacher_id = Column(Integer)
+    
     name = Column(String)
-    update_date = Column(String, nullable=True)
+    

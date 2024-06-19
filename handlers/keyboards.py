@@ -1,12 +1,12 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 register_teacher_single_button = InlineKeyboardButton(
-    text="Преподаватель",
+    text="Учитель",
     callback_data="register_teacher",
 )
 
 register_listener_single_button = InlineKeyboardButton(
-    text="Слушатель",
+    text="Студент",
     callback_data="register_listener",
 )
 

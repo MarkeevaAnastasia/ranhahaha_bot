@@ -21,7 +21,7 @@ async def start_command_callback(callback: CallbackQuery):
             new_user = User(id=callback.from_user.id, name=callback.from_user.username)
             session.add(new_user)
 
-            await callback.message.answer(f"Вы зарегистрировались как преподаватель. Следующий шаг - добавьте токен. Подробнее /register")
+            await callback.message.answer(f"Вы зарегистрировались как преподаватель. Следующий шаг - добавьте токен. Подробнее /register. Чтобы пригласить студента пришлите ему свой Id /status")
         else:
             await callback.message.answer("Попросите ID вашего преподавателя и отправьте в чат для регистрации /start ID")
 
